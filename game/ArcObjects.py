@@ -17,7 +17,7 @@ class Paddle(QGraphicsRectItem):
         super().__init__(0, 0, 150, 10)
         self.setPos(300, 650)
         self.setBrush(Qt.yellow)
-        self.x_speed = 30
+        self.x_speed = 30        
 
     def move_left(self):
         if self.x() > 0:

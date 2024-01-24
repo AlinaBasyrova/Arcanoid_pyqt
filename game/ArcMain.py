@@ -1,5 +1,6 @@
+import json
 import sys
-from PyQt5.QtWidgets import QApplication, QStackedWidget, QVBoxLayout
+from PyQt5.QtWidgets import QApplication, QLineEdit, QStackedWidget, QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget
 from PyQt5.QtWidgets import QGraphicsView, QLabel, QMainWindow, QPushButton, QGraphicsScene
 from PyQt5.QtCore import Qt, QTimer
 import ArcObjects
@@ -78,8 +79,8 @@ class Game(QGraphicsView):
     def game_over(self, text):
         self.timer.stop()
         print("Игра окончена.")
-        lose_window = LoseWindow(text, self.score)
-        game_stack.addWidget(lose_window)
+        end_window = EndGameWindow(text, self.score)
+        game_stack.addWidget(end_window)
         game_stack.removeWidget(self)
 
 class StartWindow(QMainWindow):
@@ -87,7 +88,7 @@ class StartWindow(QMainWindow):
         super(StartWindow, self).__init__()
 
         self.setStyleSheet("QLabel {font: 20pt Comic Sans MS; color: white} \
-                   QPushButton {font: 10pt Comic Sans MS; background-color: white}")
+            QPushButton {font: 10pt Comic Sans MS; background-color: white}")
 
         welcome_label = QLabel("Добро пожаловать!", self)
         welcome_label.setGeometry(0, 250, 710, 40)
@@ -97,17 +98,29 @@ class StartWindow(QMainWindow):
         start_button.setGeometry(300, 350, 120, 40)
         start_button.clicked.connect(self.start_game)
 
+        score_button = QPushButton("Рекорды", self)
+        score_button.setGeometry(300, 400, 120, 40)
+        score_button.clicked.connect(self.score_window)
+
     def start_game(self):
         graphics_view = Game()
         game_stack.addWidget(graphics_view)
         game_stack.removeWidget(self)
 
-class LoseWindow(QMainWindow):
+    def score_window(self):
+        score_window = ScoresWidget()
+        game_stack.addWidget(score_window)
+        game_stack.removeWidget(self)
+
+class EndGameWindow(QMainWindow):
     def __init__(self, text, score):
-        super(LoseWindow, self).__init__()
+        super(EndGameWindow, self).__init__()
 
         self.setStyleSheet("QLabel {font: 20pt Comic Sans MS; color: white} \
-                   QPushButton {font: 10pt Comic Sans MS; background-color: white}")
+            QPushButton {font: 10pt Comic Sans MS; background-color: white} \
+            QLineEdit {font: 10pt Comic Sans MS; color: white}")
+        
+        self.score = score
 
         label = QLabel(text, self)
         label.setGeometry(0, 200, 710, 40)
@@ -125,6 +138,13 @@ class LoseWindow(QMainWindow):
         restart_button.clicked.connect(self.on_start)
         restart_button.setGeometry(300, 400, 120, 40)
 
+        self.player_name_input = QLineEdit("Aaa", self)
+        self.player_name_input.setGeometry(300, 500, 120, 40)
+
+        score_button = QPushButton("Add score", self)
+        score_button.clicked.connect(self.score_window)
+        score_button.setGeometry(300, 550, 120, 40)
+
     def restart_game(self):
         graphics_view = Game()
         game_stack.addWidget(graphics_view)
@@ -134,6 +154,87 @@ class LoseWindow(QMainWindow):
         start_window = StartWindow()
         game_stack.addWidget(start_window)
         game_stack.removeWidget(self)
+
+    def score_window(self):
+        score_window = ScoresWidget(self.player_name_input.text(), self.score)
+        game_stack.addWidget(score_window)
+        game_stack.removeWidget(self)
+
+class ScoresWidget(QWidget):
+    def __init__(self, name = '-', score = -1):
+        super(ScoresWidget, self).__init__()
+
+        self.setStyleSheet("QPushButton {font: 10pt Comic Sans MS; background-color: white} \
+            QTableWidget {font: 10pt Comic Sans MS; background-color: black; color: white} \
+            QHeaderView {font: 10pt Comic Sans MS; black; color: white} \
+            QHeaderView::section {background-color:black}")
+
+        self.high_scores_table = QTableWidget()
+        self.high_scores_table.setColumnCount(2)
+        self.high_scores_table.setHorizontalHeaderLabels(["Игрок", "Очки"])
+
+        self.load_high_scores()
+
+        self.add_score_button = QPushButton("На главную")
+        self.add_score_button.clicked.connect(self.on_start)
+        self.clear_score_button = QPushButton("Очистить")
+        self.clear_score_button.clicked.connect(self.clear_score)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.high_scores_table)
+        layout.addWidget(self.add_score_button)
+        layout.addWidget(self.clear_score_button)
+        self.setLayout(layout)
+
+        if score != -1:
+            self.add_score(name, score)
+
+    def load_high_scores(self):
+        try:
+            with open('high_scores.json', 'r') as file:
+                data = json.load(file)
+                self.populate_high_scores(data)
+        except FileNotFoundError:
+            self.populate_high_scores([])
+
+    def save_high_scores(self):
+        data = []
+        for row in range(self.high_scores_table.rowCount()):
+            player = self.high_scores_table.item(row, 0).text()
+            score = int(self.high_scores_table.item(row, 1).text())
+            data.append({"Player": player, "Score": score})
+
+        data.sort(key=lambda x: x["Score"], reverse = True)
+
+        with open("high_scores.json", 'w') as file:
+            json.dump(data, file)
+
+    def populate_high_scores(self, data):
+        for row, entry in enumerate(data):
+            player = entry["Player"]
+            score = entry["Score"]
+
+            self.high_scores_table.insertRow(row)
+            self.high_scores_table.setItem(row, 0, QTableWidgetItem(player))
+            self.high_scores_table.setItem(row, 1, QTableWidgetItem(str(score)))
+
+    def add_score(self, name, score):
+        row_position = self.high_scores_table.rowCount()
+        self.high_scores_table.insertRow(row_position)
+        self.high_scores_table.setItem(row_position, 0, QTableWidgetItem(name))
+        self.high_scores_table.setItem(row_position, 1, QTableWidgetItem(str(score)))
+        self.save_high_scores()
+
+    def clear_score(self):
+        with open("high_scores.json", 'w') as файл:
+            json.dump({}, файл)
+        self.high_scores_table.clear()
+
+    def on_start(self):
+        start_window = StartWindow()
+        game_stack.addWidget(start_window)
+        game_stack.removeWidget(self)
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)
