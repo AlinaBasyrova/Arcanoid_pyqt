@@ -175,6 +175,9 @@ class ScoresWidget(QWidget):
 
         self.load_high_scores()
 
+        if score != -1:
+            self.add_score(name, score)
+
         self.add_score_button = QPushButton("На главную")
         self.add_score_button.clicked.connect(self.on_start)
         self.clear_score_button = QPushButton("Очистить")
@@ -186,16 +189,13 @@ class ScoresWidget(QWidget):
         layout.addWidget(self.clear_score_button)
         self.setLayout(layout)
 
-        if score != -1:
-            self.add_score(name, score)
-
     def load_high_scores(self):
         try:
             with open('high_scores.json', 'r') as file:
                 data = json.load(file)
-                self.populate_high_scores(data)
+                self.fill_high_scores(data)
         except FileNotFoundError:
-            self.populate_high_scores([])
+            self.fill_high_scores([])
 
     def save_high_scores(self):
         data = []
@@ -209,7 +209,7 @@ class ScoresWidget(QWidget):
         with open("high_scores.json", 'w') as file:
             json.dump(data, file)
 
-    def populate_high_scores(self, data):
+    def fill_high_scores(self, data):
         for row, entry in enumerate(data):
             player = entry["Player"]
             score = entry["Score"]
@@ -224,6 +224,8 @@ class ScoresWidget(QWidget):
         self.high_scores_table.setItem(row_position, 0, QTableWidgetItem(name))
         self.high_scores_table.setItem(row_position, 1, QTableWidgetItem(str(score)))
         self.save_high_scores()
+
+        self.update()
 
     def clear_score(self):
         with open("high_scores.json", 'w') as файл:
